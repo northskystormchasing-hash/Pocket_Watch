@@ -35,7 +35,6 @@ const ghostBtnStyle = (c) => ({
   background: "none", color: c.text, cursor: "pointer", fontSize: 13,
 });
 
-// ---------- LOGIN SCREEN ----------
 function LoginScreen({ c, pendingJoinCode }) {
   const [email, setEmail] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -47,7 +46,6 @@ function LoginScreen({ c, pendingJoinCode }) {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     if (inviteCode.trim()) {
       const { data: invite, error: inviteErr } = await supabase
         .from("invites").select("*").eq("code", inviteCode.trim())
@@ -58,14 +56,8 @@ function LoginScreen({ c, pendingJoinCode }) {
         return;
       }
     }
-
-    const redirectUrl = pendingJoinCode
-      ? `${window.location.origin}/?join=${pendingJoinCode}`
-      : window.location.origin;
-
-    const { error: signInErr } = await supabase.auth.signInWithOtp({
-      email, options: { emailRedirectTo: redirectUrl },
-    });
+    const redirectUrl = pendingJoinCode ? `${window.location.origin}/?join=${pendingJoinCode}` : window.location.origin;
+    const { error: signInErr } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectUrl } });
     if (signInErr) setError(signInErr.message);
     else setSent(true);
     setLoading(false);
@@ -84,14 +76,8 @@ function LoginScreen({ c, pendingJoinCode }) {
       <div style={{ maxWidth: 380, width: "100%", textAlign: "center" }}>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}><Watermark c={c} /></div>
         <h1 style={{ color: c.text, fontFamily: "Georgia, serif", fontSize: 26, marginBottom: 6 }}>Pocket Watch</h1>
-        <p style={{ color: c.subtext, fontSize: 14, marginBottom: 26 }}>
-          An invite-only circle. All the time in the world for the people who matter.
-        </p>
-        {pendingJoinCode && (
-          <div style={{ color: c.forest, fontSize: 13, marginBottom: 16 }}>
-            You've got a Circle invite waiting — sign in first, then it'll join automatically.
-          </div>
-        )}
+        <p style={{ color: c.subtext, fontSize: 14, marginBottom: 26 }}>An invite-only circle. All the time in the world for the people who matter.</p>
+        {pendingJoinCode && <div style={{ color: c.forest, fontSize: 13, marginBottom: 16 }}>You've got a Circle invite waiting — sign in first, then it'll join automatically.</div>}
         {sent ? (
           <div style={{ color: c.forest, fontSize: 15 }}>Check your email — we sent you a link to finish signing in.</div>
         ) : (
@@ -99,12 +85,8 @@ function LoginScreen({ c, pendingJoinCode }) {
             <input type="email" placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle(c)} />
             <input type="text" placeholder="Invite code (leave blank to request access)" value={inviteCode} onChange={(e) => setInviteCode(e.target.value)} style={inputStyle(c)} />
             {error && <div style={{ color: "#B0524D", fontSize: 13, marginBottom: 10 }}>{error}</div>}
-            <button type="submit" disabled={loading} style={{ ...btnStyle(c), width: "100%", marginBottom: 10 }}>
-              {loading ? "Sending..." : "Send me a sign-in link"}
-            </button>
-            <button type="button" onClick={handleRequestAccess} style={{ ...ghostBtnStyle(c), width: "100%" }}>
-              No invite code? Request access instead
-            </button>
+            <button type="submit" disabled={loading} style={{ ...btnStyle(c), width: "100%", marginBottom: 10 }}>{loading ? "Sending..." : "Send me a sign-in link"}</button>
+            <button type="button" onClick={handleRequestAccess} style={{ ...ghostBtnStyle(c), width: "100%" }}>No invite code? Request access instead</button>
           </form>
         )}
       </div>
@@ -112,8 +94,7 @@ function LoginScreen({ c, pendingJoinCode }) {
   );
 }
 
-// ---------- POST CARD (with likes + comments) ----------
-function PostCard({ post, c, currentUserId, onRefresh }) {
+function PostCard({ post, c, currentUserId }) {
   const [liked, setLiked] = useState(post.userLiked);
   const [likeCount, setLikeCount] = useState(post.likeCount || 0);
   const [showComments, setShowComments] = useState(false);
@@ -143,7 +124,8 @@ function PostCard({ post, c, currentUserId, onRefresh }) {
   async function submitComment(e) {
     e.preventDefault();
     if (!newComment.trim()) return;
-    await supabase.from("comments").insert({ post_id: post.id, author_id: currentUserId, content: newComment.trim() });
+    const { error } = await supabase.from("comments").insert({ post_id: post.id, author_id: currentUserId, content: newComment.trim() });
+    if (error) { alert("Comment failed: " + error.message); return; }
     setNewComment("");
     loadComments();
   }
@@ -160,21 +142,12 @@ function PostCard({ post, c, currentUserId, onRefresh }) {
         )}
         <div>
           <div style={{ color: c.text, fontWeight: 600, fontSize: 14 }}>{post.profiles?.display_name || post.profiles?.username}</div>
-          <div style={{ color: c.subtext, fontSize: 12 }}>
-            {new Date(post.created_at).toLocaleString()} {post.circles?.name ? `· ${post.circles.name}` : "· Everyone"}
-          </div>
+          <div style={{ color: c.subtext, fontSize: 12 }}>{new Date(post.created_at).toLocaleString()} {post.circles?.name ? `· ${post.circles.name}` : "· Everyone"}</div>
         </div>
       </div>
-
       {post.content && <p style={{ color: c.text, fontSize: 15, lineHeight: 1.5, margin: "0 0 10px 0" }}>{post.content}</p>}
-
-      {post.post_type === "photo" && post.media_url && (
-        <img src={post.media_url} alt="" style={{ width: "100%", borderRadius: 10, marginBottom: 10, display: "block" }} />
-      )}
-      {post.post_type === "video" && post.media_url && (
-        <video src={post.media_url} controls style={{ width: "100%", borderRadius: 10, marginBottom: 10 }} />
-      )}
-
+      {post.post_type === "photo" && post.media_url && <img src={post.media_url} alt="" style={{ width: "100%", borderRadius: 10, marginBottom: 10, display: "block" }} />}
+      {post.post_type === "video" && post.media_url && <video src={post.media_url} controls style={{ width: "100%", borderRadius: 10, marginBottom: 10 }} />}
       <div style={{ display: "flex", gap: 18, color: c.subtext, fontSize: 13, alignItems: "center" }}>
         <button onClick={toggleLike} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, color: liked ? c.brassDeep : c.subtext, padding: 0 }}>
           <Heart size={16} fill={liked ? c.brassDeep : "none"} /> {likeCount}
@@ -183,7 +156,6 @@ function PostCard({ post, c, currentUserId, onRefresh }) {
           <MessageCircle size={16} /> {comments.length || post.commentCount || ""}
         </button>
       </div>
-
       {showComments && (
         <div style={{ marginTop: 12, borderTop: `1px solid ${c.border}`, paddingTop: 10 }}>
           {comments.map((cm) => (
@@ -202,7 +174,6 @@ function PostCard({ post, c, currentUserId, onRefresh }) {
   );
 }
 
-// ---------- MAIN APP ----------
 export default function App() {
   const [dark, setDark] = useState(false);
   const [tab, setTab] = useState("feed");
@@ -231,11 +202,7 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const joinCode = params.get("join");
     if (joinCode) setPendingJoinCode(joinCode);
-
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
+    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setLoading(false); });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -257,38 +224,38 @@ export default function App() {
   }
 
   async function loadCircles() {
-    const { data } = await supabase
-      .from("circle_members")
-      .select("circle_id, role, circles(id, name, created_by)")
-      .eq("user_id", session.user.id);
+    const { data, error } = await supabase.from("circle_members").select("circle_id, role, circles(id, name, created_by)").eq("user_id", session.user.id);
+    if (error) { console.error("loadCircles error:", error); return; }
     setCircles((data || []).map((m) => m.circles).filter(Boolean));
   }
 
   async function joinCircleByCode(code) {
     const { data: invite } = await supabase.from("circle_invites").select("*").eq("code", code).single();
     if (!invite) return;
-    await supabase.from("circle_members").insert({ circle_id: invite.circle_id, user_id: session.user.id, role: "member" }).select();
+    await supabase.from("circle_members").insert({ circle_id: invite.circle_id, user_id: session.user.id, role: "member" });
     loadCircles();
     window.history.replaceState({}, "", window.location.pathname);
   }
 
   async function loadPosts() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("posts")
       .select("*, profiles(username, display_name, avatar_url), circles(name)")
       .order("created_at", { ascending: false })
       .limit(50);
 
+    if (error) { console.error("loadPosts error:", error); setPosts([]); return; }
     if (!data) { setPosts([]); return; }
 
     const postIds = data.map((p) => p.id);
-    const { data: myLikes } = await supabase.from("likes").select("post_id").eq("user_id", session.user.id).in("post_id", postIds);
-    const likedSet = new Set((myLikes || []).map((l) => l.post_id));
-
-    const { data: allLikes } = await supabase.from("likes").select("post_id").in("post_id", postIds);
-    const likeCounts = {};
-    (allLikes || []).forEach((l) => { likeCounts[l.post_id] = (likeCounts[l.post_id] || 0) + 1; });
-
+    let likedSet = new Set();
+    let likeCounts = {};
+    if (postIds.length > 0) {
+      const { data: myLikes } = await supabase.from("likes").select("post_id").eq("user_id", session.user.id).in("post_id", postIds);
+      likedSet = new Set((myLikes || []).map((l) => l.post_id));
+      const { data: allLikes } = await supabase.from("likes").select("post_id").in("post_id", postIds);
+      (allLikes || []).forEach((l) => { likeCounts[l.post_id] = (likeCounts[l.post_id] || 0) + 1; });
+    }
     setPosts(data.map((p) => ({ ...p, userLiked: likedSet.has(p.id), likeCount: likeCounts[p.id] || 0 })));
   }
 
@@ -315,19 +282,28 @@ export default function App() {
       const bucket = pendingMedia.type === "photo" ? "photos" : "videos";
       const path = `${session.user.id}/${Date.now()}-${pendingMedia.file.name}`;
       const { error: uploadErr } = await supabase.storage.from(bucket).upload(path, pendingMedia.file);
-      if (!uploadErr) {
-        const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path);
-        mediaUrl = pub.publicUrl;
+      if (uploadErr) {
+        alert("Media upload failed: " + uploadErr.message);
+        setUploading(false);
+        return;
       }
+      const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path);
+      mediaUrl = pub.publicUrl;
     }
 
-    await supabase.from("posts").insert({
+    const { error: postErr } = await supabase.from("posts").insert({
       author_id: session.user.id,
       post_type: postType,
       content: newPost.trim() || null,
       media_url: mediaUrl,
       circle_id: postCircleId || null,
     });
+
+    if (postErr) {
+      alert("Post failed: " + postErr.message);
+      setUploading(false);
+      return;
+    }
 
     setNewPost("");
     setPendingMedia(null);
@@ -339,16 +315,23 @@ export default function App() {
     if (!file) return;
     const path = `${session.user.id}/${Date.now()}-${file.name}`;
     const { error: uploadErr } = await supabase.storage.from("avatars").upload(path, file);
-    if (!uploadErr) {
-      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
-      await supabase.from("profiles").update({ avatar_url: pub.publicUrl }).eq("id", session.user.id);
-      loadProfile();
+    if (uploadErr) {
+      alert("Avatar upload failed: " + uploadErr.message);
+      return;
     }
+    const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
+    const { error: updateErr } = await supabase.from("profiles").update({ avatar_url: pub.publicUrl }).eq("id", session.user.id);
+    if (updateErr) {
+      alert("Saving avatar to profile failed: " + updateErr.message);
+      return;
+    }
+    loadProfile();
   }
 
   async function saveProfile(e) {
     e.preventDefault();
-    await supabase.from("profiles").update({ display_name: profileForm.display_name, bio: profileForm.bio }).eq("id", session.user.id);
+    const { error } = await supabase.from("profiles").update({ display_name: profileForm.display_name, bio: profileForm.bio }).eq("id", session.user.id);
+    if (error) { alert("Save failed: " + error.message); return; }
     setEditingProfile(false);
     loadProfile();
   }
@@ -356,19 +339,26 @@ export default function App() {
   async function createCircle(e) {
     e.preventDefault();
     if (!newCircleName.trim()) return;
-    const { data: circle } = await supabase.from("circles").insert({ name: newCircleName.trim(), created_by: session.user.id }).select().single();
-    if (circle) {
-      await supabase.from("circle_members").insert({ circle_id: circle.id, user_id: session.user.id, role: "owner" });
-      setNewCircleName("");
-      loadCircles();
+    const { data: circle, error: circleErr } = await supabase.from("circles").insert({ name: newCircleName.trim(), created_by: session.user.id }).select().single();
+    if (circleErr) {
+      alert("Creating Circle failed: " + circleErr.message);
+      return;
     }
+    const { error: memberErr } = await supabase.from("circle_members").insert({ circle_id: circle.id, user_id: session.user.id, role: "owner" });
+    if (memberErr) {
+      alert("Circle created but joining it failed: " + memberErr.message);
+      return;
+    }
+    setNewCircleName("");
+    loadCircles();
   }
 
   async function getOrCreateInviteLink(circleId) {
     const { data: existing } = await supabase.from("circle_invites").select("*").eq("circle_id", circleId).eq("created_by", session.user.id).limit(1).single();
     let code = existing?.code;
     if (!code) {
-      const { data: created } = await supabase.from("circle_invites").insert({ circle_id: circleId, created_by: session.user.id }).select().single();
+      const { data: created, error } = await supabase.from("circle_invites").insert({ circle_id: circleId, created_by: session.user.id }).select().single();
+      if (error) { alert("Creating invite link failed: " + error.message); return; }
       code = created?.code;
     }
     const link = `${window.location.origin}/?join=${code}`;
@@ -384,13 +374,8 @@ export default function App() {
     await supabase.auth.signOut();
   }
 
-  if (loading) {
-    return <div style={{ minHeight: "100vh", background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", color: c.text }}>Loading...</div>;
-  }
-
-  if (!session) {
-    return <LoginScreen c={c} pendingJoinCode={pendingJoinCode} />;
-  }
+  if (loading) return <div style={{ minHeight: "100vh", background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", color: c.text }}>Loading...</div>;
+  if (!session) return <LoginScreen c={c} pendingJoinCode={pendingJoinCode} />;
 
   return (
     <div style={{ minHeight: "100vh", background: c.bg, fontFamily: "'Iowan Old Style', Georgia, serif" }}>
@@ -400,12 +385,8 @@ export default function App() {
           <span style={{ color: c.text, fontWeight: 700, fontSize: 18 }}>Pocket Watch</span>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setDark(!dark)} style={{ background: "none", border: `1px solid ${c.border}`, borderRadius: 20, padding: "6px 10px", color: c.text, cursor: "pointer" }}>
-            {dark ? <Sun size={15} /> : <Moon size={15} />}
-          </button>
-          <button onClick={handleSignOut} style={{ background: "none", border: `1px solid ${c.border}`, borderRadius: 20, padding: "6px 10px", color: c.text, cursor: "pointer" }}>
-            <LogOut size={15} />
-          </button>
+          <button onClick={() => setDark(!dark)} style={{ background: "none", border: `1px solid ${c.border}`, borderRadius: 20, padding: "6px 10px", color: c.text, cursor: "pointer" }}>{dark ? <Sun size={15} /> : <Moon size={15} />}</button>
+          <button onClick={handleSignOut} style={{ background: "none", border: `1px solid ${c.border}`, borderRadius: 20, padding: "6px 10px", color: c.text, cursor: "pointer" }}><LogOut size={15} /></button>
         </div>
       </div>
 
@@ -414,7 +395,6 @@ export default function App() {
           <>
             <form onSubmit={handleCreatePost} style={{ marginBottom: 16 }}>
               <textarea value={newPost} onChange={(e) => setNewPost(e.target.value)} placeholder="Share something with your circle..." style={{ ...inputStyle(c), minHeight: 60, resize: "none" }} />
-
               {pendingMedia && (
                 <div style={{ position: "relative", marginBottom: 10 }}>
                   {pendingMedia.type === "photo" ? (
@@ -422,33 +402,23 @@ export default function App() {
                   ) : (
                     <video src={pendingMedia.previewUrl} style={{ width: "100%", borderRadius: 10, maxHeight: 200 }} controls />
                   )}
-                  <button type="button" onClick={() => setPendingMedia(null)} style={{ position: "absolute", top: 6, right: 6, background: c.card, border: `1px solid ${c.border}`, borderRadius: "50%", width: 28, height: 28, cursor: "pointer" }}>
-                    <X size={14} color={c.text} />
-                  </button>
+                  <button type="button" onClick={() => setPendingMedia(null)} style={{ position: "absolute", top: 6, right: 6, background: c.card, border: `1px solid ${c.border}`, borderRadius: "50%", width: 28, height: 28, cursor: "pointer" }}><X size={14} color={c.text} /></button>
                 </div>
               )}
-
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
-                <button type="button" onClick={() => photoInputRef.current?.click()} style={ghostBtnStyle(c)}>
-                  <ImageIcon size={14} style={{ verticalAlign: "middle", marginRight: 4 }} /> Photo
-                </button>
-                <button type="button" onClick={() => videoInputRef.current?.click()} style={ghostBtnStyle(c)}>
-                  <Video size={14} style={{ verticalAlign: "middle", marginRight: 4 }} /> Video
-                </button>
+                <button type="button" onClick={() => photoInputRef.current?.click()} style={ghostBtnStyle(c)}><ImageIcon size={14} style={{ verticalAlign: "middle", marginRight: 4 }} /> Photo</button>
+                <button type="button" onClick={() => videoInputRef.current?.click()} style={ghostBtnStyle(c)}><Video size={14} style={{ verticalAlign: "middle", marginRight: 4 }} /> Video</button>
                 <input ref={photoInputRef} type="file" accept="image/*" hidden onChange={(e) => handlePickMedia(e.target.files[0], "photo")} />
                 <input ref={videoInputRef} type="file" accept="video/*" hidden onChange={(e) => handlePickMedia(e.target.files[0], "video")} />
-
                 <select value={postCircleId} onChange={(e) => setPostCircleId(e.target.value)} style={{ ...inputStyle(c), width: "auto", marginBottom: 0, padding: "8px 10px", fontSize: 13 }}>
                   <option value="">Everyone</option>
                   {circles.map((circ) => <option key={circ.id} value={circ.id}>{circ.name}</option>)}
                 </select>
               </div>
-
               <button type="submit" disabled={uploading} style={btnStyle(c)}>{uploading ? "Posting..." : "Post"}</button>
             </form>
-
             {posts.length === 0 && <div style={{ color: c.subtext, textAlign: "center", padding: 30, fontSize: 14 }}>No posts yet. Be the first to share something.</div>}
-            {posts.map((post) => <PostCard key={post.id} post={post} c={c} currentUserId={session.user.id} onRefresh={loadPosts} />)}
+            {posts.map((post) => <PostCard key={post.id} post={post} c={c} currentUserId={session.user.id} />)}
           </>
         )}
 
@@ -470,17 +440,11 @@ export default function App() {
               <input value={newCircleName} onChange={(e) => setNewCircleName(e.target.value)} placeholder="New Circle name (e.g. Family)" style={{ ...inputStyle(c), marginBottom: 0, flex: 1 }} />
               <button type="submit" style={btnStyle(c)}><Plus size={16} /></button>
             </form>
-
             {circles.length === 0 && <div style={{ color: c.subtext, textAlign: "center", padding: 20, fontSize: 14 }}>No Circles yet. Create one above.</div>}
-
             {circles.map((circ) => (
               <div key={circ.id} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: 14, padding: 14, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ color: c.text, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
-                  <Users size={16} color={c.brass} /> {circ.name}
-                </div>
-                <button onClick={() => getOrCreateInviteLink(circ.id)} style={ghostBtnStyle(c)}>
-                  <LinkIcon size={13} style={{ verticalAlign: "middle", marginRight: 4 }} /> Invite link
-                </button>
+                <div style={{ color: c.text, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}><Users size={16} color={c.brass} /> {circ.name}</div>
+                <button onClick={() => getOrCreateInviteLink(circ.id)} style={ghostBtnStyle(c)}><LinkIcon size={13} style={{ verticalAlign: "middle", marginRight: 4 }} /> Invite link</button>
               </div>
             ))}
           </div>
@@ -492,16 +456,11 @@ export default function App() {
               {profile.avatar_url ? (
                 <img src={profile.avatar_url} alt="" style={{ width: 78, height: 78, borderRadius: "50%", objectFit: "cover", margin: "10px auto 12px auto", display: "block" }} />
               ) : (
-                <div style={{ width: 78, height: 78, borderRadius: "50%", background: c.brass, margin: "10px auto 12px auto", display: "flex", alignItems: "center", justifyContent: "center", color: c.card, fontSize: 28, fontWeight: 700 }}>
-                  {profile.display_name?.[0] || "?"}
-                </div>
+                <div style={{ width: 78, height: 78, borderRadius: "50%", background: c.brass, margin: "10px auto 12px auto", display: "flex", alignItems: "center", justifyContent: "center", color: c.card, fontSize: 28, fontWeight: 700 }}>{profile.display_name?.[0] || "?"}</div>
               )}
-              <button onClick={() => avatarInputRef.current?.click()} style={{ position: "absolute", bottom: 8, right: -4, background: c.brass, border: `2px solid ${c.bg}`, borderRadius: "50%", width: 28, height: 28, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Camera size={14} color={c.card} />
-              </button>
+              <button onClick={() => avatarInputRef.current?.click()} style={{ position: "absolute", bottom: 8, right: -4, background: c.brass, border: `2px solid ${c.bg}`, borderRadius: "50%", width: 28, height: 28, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Camera size={14} color={c.card} /></button>
               <input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={(e) => handleAvatarUpload(e.target.files[0])} />
             </div>
-
             {!editingProfile ? (
               <>
                 <div style={{ color: c.text, fontWeight: 700, fontSize: 18 }}>{profile.display_name}</div>
@@ -539,4 +498,4 @@ export default function App() {
       </div>
     </div>
   );
-            }
+                                }
